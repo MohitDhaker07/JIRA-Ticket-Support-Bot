@@ -3,8 +3,11 @@
 ## Overview
 
 A smart tool to analyze and retrieve solutions from historical JIRA tickets using OpenAI and semantic search.
-![image](https://github.com/user-attachments/assets/7a150f9d-afc4-4977-a293-66f0caf52fa2)
+![image](https://github.com/user-attachments/assets/1da84ec5-58e5-41e4-94d3-44be02e5718f)
 
+
+
+![image](https://github.com/user-attachments/assets/c8dd0098-b85d-4bca-8eae-784ec78db7ba)
 
 ## Features
 
