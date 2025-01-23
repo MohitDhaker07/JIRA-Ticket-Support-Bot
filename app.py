@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import pandas as pd
 from dotenv import load_dotenv
 
 from ticket_analyzer import TicketAnalyzer
@@ -8,37 +9,72 @@ from data_processor import JIRADataProcessor
 # Load environment variables
 load_dotenv()
 
-# Set page configuration
-st.set_page_config(
-    page_title="JIRA Ticket Analyzer",
-    page_icon="🎫",
-    layout="wide"
-)
+# Custom CSS for enhanced styling
+def local_css():
+    st.markdown("""
+    <style>
+    .main-container {
+        background-color: #f4f4f4;
+        padding: 2rem;
+        border-radius: 10px;
+    }
+    .stApp {
+        background-color: #ffffff;
+    }
+    .ticket-card {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    .stTextInput > div > div > input {
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        padding: 10px;
+    }
+    .stButton > button {
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 6px;
+        border: none;
+        padding: 10px 20px;
+    }
+    .stButton > button:hover {
+        background-color: #45a049;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 def main():
+    # Set page configuration
+    st.set_page_config(
+        page_title="JIRA Ticket Analyzer",
+        page_icon="🎫",
+        layout="wide"
+    )
+    
+    # Apply custom CSS
+    local_css()
+    
+    # Main container
+    st.markdown('<div class="main-container">', unsafe_allow_html=True)
+    
+    # Title and description
     st.title("🎫 JIRA Ticket Analyzer")
+    st.markdown("**Intelligent ticket search and insights powered by AI**")
     
-    # Sidebar for file upload
-    with st.sidebar:
-        st.header("Upload JIRA Tickets")
-        uploaded_file = st.file_uploader(
-            "Choose an Excel file", 
-            type=['xlsx'], 
-            help="Upload your JIRA ticket history Excel file"
-        )
-        
-        st.markdown("### Search Tips")
-        st.markdown("""
-        - Search by customer, status, or issue type
-        - Use specific keywords from ticket summaries
-        - Include context about the problem
-        """)
+    # File upload
+    uploaded_file = st.file_uploader(
+        "Upload JIRA Ticket Excel", 
+        type=['xlsx'], 
+        help="Upload your historical JIRA ticket data"
+    )
     
-    # Main content area
+    # Main functionality
     if uploaded_file is not None:
-        # Process uploaded file
         try:
-            # Save uploaded file temporarily
+            # Save and process file
             with open(os.path.join("temp", uploaded_file.name), "wb") as f:
                 f.write(uploaded_file.getbuffer())
             
@@ -49,60 +85,87 @@ def main():
             # Initialize ticket analyzer
             ticket_analyzer = TicketAnalyzer(dataframe)
             
-            # Query input
-            query = st.text_input(
-                "Enter your ticket query", 
-                placeholder="Search tickets by customer, status, or issue"
-            )
+            # Advanced search with filters
+            col1, col2, col3 = st.columns([3, 1, 1])
             
-            if query:
+            with col1:
+                query = st.text_input(
+                    "Search Tickets", 
+                    placeholder="Enter keywords, customer name, or issue description"
+                )
+            
+            with col2:
+                priority_filter = st.selectbox(
+                    "Priority", 
+                    ["All", "High", "Medium", "Low"]
+                )
+            
+            with col3:
+                status_filter = st.selectbox(
+                    "Status", 
+                    ["All", "Open", "Resolved", "Closed"]
+                )
+            
+            # Search button
+            if st.button("Analyze Tickets"):
+                # Apply filters
+                filtered_df = dataframe.copy()
+                if priority_filter != "All":
+                    filtered_df = filtered_df[filtered_df['Priority'] == priority_filter]
+                if status_filter != "All":
+                    filtered_df = filtered_df[filtered_df['Status'] == status_filter]
+                
                 # Find similar tickets
                 similar_tickets = ticket_analyzer.find_similar_tickets(query)
                 
-                # Display results
                 if not similar_tickets.empty:
-                    st.subheader("Similar Tickets Found")
+                    # Ticket Results Section
+                    st.markdown("## 🔍 Matching Tickets")
                     
-                    # Create columns for ticket details
-                    cols = st.columns([1,1,1,1,1,1])
-                    headers = ['Ticket ID', 'Status', 'Priority', 'Customer', 'Summary', 'Comments']
-                    
-                    # Display headers
-                    for col, header in zip(cols, headers):
-                        col.write(f"**{header}**")
-                    
-                    # Display ticket details
                     for _, row in similar_tickets.iterrows():
-                        cols = st.columns([1,1,1,1,1,1])
-                        cols[0].write(str(row['Ticket ID']))
-                        cols[1].write(row['Status'])
-                        cols[2].write(row['Priority'])
-                        cols[3].write(row['Customer'])
-                        cols[4].write(row['Summary'])
-                        cols[5].write(row['Comments'])
+                        with st.expander(f"Ticket #{row['Ticket ID']} - {row['Summary'][:50]}..."):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.markdown(f"**Status:** {row['Status']}")
+                                st.markdown(f"**Priority:** {row['Priority']}")
+                                st.markdown(f"**Customer:** {row['Customer']}")
+                            
+                            with col2:
+                                st.markdown(f"**Created:** {row['Created Date']}")
+                                st.markdown(f"**Resolved:** {row.get('Resolved Date', 'N/A')}")
+                            
+                            st.markdown("**Comments:**")
+                            st.write(row['Comments'])
                     
-                    # Generate AI response
+                    # AI Insights
+                    st.markdown("## 💡 AI Assistant Insights")
                     response = ticket_analyzer.generate_response(query, similar_tickets)
-                    
-                    # Display AI response
-                    st.subheader("AI Assistant Insights")
                     st.info(response)
+                
                 else:
-                    st.warning("No similar tickets found. Try a different query.")
+                    st.warning("No matching tickets found. Try different search terms.")
         
         except Exception as e:
-            st.error(f"An error occurred: {e}")
+            st.error(f"Error processing tickets: {e}")
     
     else:
-        # Welcome message
+        # Welcome and guide section
         st.markdown("""
-        ### Welcome to JIRA Ticket Analyzer
+        ### How to Use
+        1. 📤 Upload your JIRA ticket Excel file
+        2. 🔍 Use the search bar to find tickets
+        3. 🧠 Get AI-powered insights
         
-        📌 **How to Use:**
-        1. Upload your JIRA ticket Excel file
-        2. Enter a query about an issue
-        3. Get insights from historical tickets
+        **Search Tips:**
+        - Use specific keywords
+        - Try different search terms
+        - Filter by priority and status
         """)
+    
+    # Close main container
+    st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
+    # Ensure temp directory exists
+    os.makedirs("temp", exist_ok=True)
     main()

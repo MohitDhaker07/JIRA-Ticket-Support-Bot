@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 from dotenv import load_dotenv
 
-from embedding_service import EmbeddingService
+from    embedding_service import EmbeddingService
 
 load_dotenv()
 
